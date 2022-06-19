@@ -1,21 +1,36 @@
-import { Dispatch, useEffect } from "react";
+import { get } from "lodash";
+import { Dispatch } from "react";
 import { GlobalState } from "../App";
+import { interestOptions } from "../businessLogic/interest";
+import {
+  findAllPeopleInSimulation,
+  LifeEvent,
+} from "../businessLogic/lifeEvents";
 
-const customFormFieldList = ["money", "age", "interest"];
+const customFormFieldList = ["money", "age", "interest", "person"] as const;
+const fieldTypeList = [
+  "text",
+  "select",
+  "number",
+  "checkbox",
+  ...customFormFieldList,
+] as const;
 type customFieldTypes = typeof customFormFieldList[number];
+type fieldTypes = typeof fieldTypeList[number];
 
 export interface FormFieldProps {
   dispatch: Dispatch<{ type: string; value: any; key: string }>;
   state: GlobalState;
   label: string;
-  type: string;
+  type: fieldTypes;
   fieldKey: string;
   defaultValue?: number | string;
   placeholder?: string;
   min?: number;
   max?: number;
   cols?: number;
-  options?: string[];
+  options?: string[] | readonly string[];
+  year?: number;
 }
 
 type CustomFormFieldProps = FormFieldProps & {
@@ -23,8 +38,8 @@ type CustomFormFieldProps = FormFieldProps & {
 };
 
 function renderField(props: FormFieldProps) {
-  if (customFormFieldList.includes(props.type)) {
-    return renderCustomFieldType(props);
+  if (customFormFieldList.includes(props.type as customFieldTypes)) {
+    return renderCustomFieldType(props as CustomFormFieldProps);
   }
   return renderFormField(props);
 }
@@ -32,14 +47,14 @@ function renderField(props: FormFieldProps) {
 function renderCustomFieldType(props: CustomFormFieldProps) {
   switch (props.type) {
     case "money":
-      const propsMoney = {
+      const propsMoney: FormFieldProps = {
         ...props,
         type: "number",
         placeholder: "R$ 123",
       };
       return renderFormField(propsMoney);
     case "age":
-      const propsAge = {
+      const propsAge: FormFieldProps = {
         ...props,
         type: "number",
         placeholder: "34",
@@ -48,14 +63,24 @@ function renderCustomFieldType(props: CustomFormFieldProps) {
       };
       return renderFormField(propsAge);
     case "interest":
-      const propsInterest = {
-        value: "IPCA",
+      const propsInterest: FormFieldProps = {
         ...props,
-        placeholder: "IPCA",
         type: "select",
-        options: ["Nenhum", "IPCA", "IGPM", "IPCA+1", "IPCA+2", "IPCA+3"],
+        options: interestOptions,
       };
       return renderFormField(propsInterest);
+    case "person":
+      if (!props.year) {
+        throw new Error("year is required for person field");
+      }
+
+      const people = findAllPeopleInSimulation(props.state.lifeEvents);
+      const propsPerson: FormFieldProps = {
+        ...props,
+        type: "select",
+        options: people,
+      };
+      return renderFormField(propsPerson);
     default:
       throw new Error("Unknown custom field type: " + props.type);
   }
@@ -75,6 +100,7 @@ function renderFormField(props: FormFieldProps) {
 
 function renderInnerElement(props: FormFieldProps): JSX.Element {
   const className = "w-full mt-1 rounded-lg m-0 h-9";
+  const value = get(props.state, props.fieldKey);
   switch (props.type) {
     case "select":
       const renderOptions = () => {
@@ -85,7 +111,7 @@ function renderInnerElement(props: FormFieldProps): JSX.Element {
       return (
         <select
           className={"form-select " + className}
-          defaultValue={props.defaultValue}
+          value={value}
           onChange={(event) =>
             props.dispatch({
               type: "setValue",
@@ -118,25 +144,13 @@ function renderInnerElement(props: FormFieldProps): JSX.Element {
           placeholder={props.placeholder}
           min={props.min}
           max={props.max}
-          defaultValue={props.defaultValue}
+          value={value}
         />
       );
   }
 }
 
 export default function FormField(props: FormFieldProps): JSX.Element {
-  useEffect(() => {
-    if (
-      props.defaultValue &&
-      !props.state.initializedKeys?.has(props.fieldKey)
-    ) {
-      props.dispatch({
-        type: "setValue",
-        value: coerceTypes(props.type, props.defaultValue),
-        key: props.fieldKey,
-      });
-    }
-  });
   return renderField(props);
 }
 

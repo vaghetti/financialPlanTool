@@ -1,49 +1,48 @@
 import { cloneDeep, get, set } from "lodash";
 import React, { useReducer } from "react";
 import "./App.css";
-import Adult from "./components/AdultForm";
-import { AdultData } from "./components/AdultForm";
-import CostSettingsForm, {
-  CostSettingsData,
-} from "./components/CostSettingsForm";
+import {
+  getLifeEventTypeData,
+  LifeEvent,
+  LifeEventType,
+} from "./businessLogic/lifeEvents";
+import AddEventButton from "./components/AddEventButton";
 
-import SimulationSettingsForm, {
-  SimulationSettingsData,
-} from "./components/SimulationSettingsForm";
+import Timeline from "./components/Timeline";
 import Graph, { GraphSettingsData } from "./components/WealthGraph";
 
 export interface GlobalState {
-  settings: SimulationSettingsData;
-  costs: CostSettingsData;
   graphSettings: GraphSettingsData;
-  adults: AdultData[];
   initializedKeys: Set<string>;
+  lifeEvents: LifeEvent[];
 }
 
 function reducer(
   state: GlobalState,
-  action: { type: string; value: any; key: string }
+  action: { type: string; value: any; key?: string }
 ): GlobalState {
-  if (action.type === "setValue" && get(state, action.key) === action.value) {
+  if (
+    action.type === "setValue" &&
+    action.key &&
+    get(state, action.key) === action.value
+  ) {
     return state;
   }
-  // console.log(
-  //   "reducer triggering update, key",
-  //   action.key,
-  //   "changed from ",
-  //   get(state, action.key),
-  //   "to ",
-  //   action.value
-  // );
 
   const newState = cloneDeep(state);
   switch (action.type) {
     case "setValue":
+      if (!action.key) {
+        throw new Error("setValue action requires key");
+      }
       set(newState, action.key, action.value);
       if (newState.initializedKeys === undefined) {
         newState.initializedKeys = new Set();
       }
       newState.initializedKeys.add(action.key);
+      break;
+    case "addLifeEvent":
+      newState.lifeEvents.push(action.value);
       break;
     default:
       throw new Error("Unknown action type: " + action.type);
@@ -52,18 +51,33 @@ function reducer(
 }
 
 function App() {
+  const defaultEventTypes: LifeEventType[] = [
+    "birth",
+    "simulationStart",
+    "professionalCareerStart",
+    "startCoveringOwnExpenses",
+    "moveIntoRentedApartment",
+    "marriage",
+    "retirement",
+  ];
   const initialState: GlobalState = {
-    adults: [],
-    costs: {},
-    settings: {},
-  } as unknown as GlobalState; //FormField effects will fill all of these
+    graphSettings: {
+      inflationAdjustment: "IPCA",
+    },
+    lifeEvents: defaultEventTypes.map(
+      (type) => getLifeEventTypeData(type).defaultEvent
+    ),
+  } as GlobalState; //FormField effects will fill all of these
   const [globalState, dispatch] = useReducer(reducer, initialState);
   return (
-    <div className="bg-slate-600 w-screen h-screen grid grid-cols-12">
+    <div className="w-screen h-screen grid grid-cols-12">
       <Graph state={globalState} dispatch={dispatch} />
-      <SimulationSettingsForm dispatch={dispatch} state={globalState} />
-      <CostSettingsForm dispatch={dispatch} state={globalState} />
-      <Adult dispatch={dispatch} adultIndex={0} state={globalState} />
+      <Timeline
+        lifeEvents={globalState.lifeEvents}
+        dispatch={dispatch}
+        state={globalState}
+      />
+      <AddEventButton dispatch={dispatch} state={globalState} />
     </div>
   );
 }

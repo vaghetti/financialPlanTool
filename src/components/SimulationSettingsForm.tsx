@@ -3,13 +3,13 @@ import { GlobalState } from "../App";
 import Block from "./Block";
 import Form, { FormProps } from "./Form";
 
-export interface SimulationSettingsData {
-  IPCA: number;
-  IGPM: number;
-  portfolioYearlyReturn: number;
-  simulationStart: number;
-  simulationEnd: number;
-}
+// export interface SimulationSettingsData {
+//   IPCA: number;
+//   IGPM: number;
+//   portfolioYearlyReturn: number;
+//   simulationStart: number;
+//   simulationEnd: number;
+// }
 
 export interface SimulationSettingsProps {
   state: GlobalState;
